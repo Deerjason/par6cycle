@@ -3,19 +3,22 @@
 #include <chrono>
 #include <iostream>
 #include <vector>
-#include <numeric>
 #include "parallel_hashmap/phmap.h"
 #include "parallel_hashmap/phmap_utils.h"
 #include "tbb/parallel_for.h"
+#include <tbb/parallel_reduce.h>
+#include "tbb/parallel_sort.h"
+#include "tbb/spin_mutex.h"
 
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-using namespace std;
+typedef phmap::parallel_flat_hash_map<long long, int, phmap::priv::hash_default_hash<long long>, phmap::priv::hash_default_eq<long long>, phmap::priv::Allocator<phmap::priv::Pair<const long long, int>>, 4, tbb::spin_mutex> wedgeMap;
+typedef std::vector<std::vector<int>> graph;
 
-vector<vector<int>> readGraph(char *filename, int* nEdge, int* vLeft, int* vRight) {
-    vector<vector<int>> G;
+graph readGraph(const char *filename, int& nEdge, int& vLeft, int& vRight) {
+    graph G;
 
     char *f;
     int size;
@@ -29,19 +32,19 @@ vector<vector<int>> readGraph(char *filename, int* nEdge, int* vLeft, int* vRigh
     f = (char *) mmap (0, size, PROT_READ, MAP_PRIVATE, fd, 0);
 
     int headerEnd = 0;
-    *nEdge = 0, *vLeft = 0, *vRight = 0;
+    nEdge = 0, vLeft = 0, vRight = 0;
     bool nE = true, vL = false;
     char c = f[headerEnd];
     while (c != '\n') {
         if (isdigit(c)) {
             if (nE) {
-                *nEdge = *nEdge * 10 + c - '0';
+                nEdge = nEdge * 10 + c - '0';
             }
             else if (vL) {
-                *vLeft = *vLeft * 10 + c - '0';
+                vLeft = vLeft * 10 + c - '0';
             }
             else {
-                *vRight = *vRight * 10 + c - '0';
+                vRight = vRight * 10 + c - '0';
             }
         }
         else {
@@ -56,7 +59,7 @@ vector<vector<int>> readGraph(char *filename, int* nEdge, int* vLeft, int* vRigh
         headerEnd += 1;
         c = f[headerEnd];
     }
-    G.resize(*vLeft + *vRight);
+    G.resize(vLeft + vRight);
 
     int u = 0, v = 0;
     bool left = true;
@@ -79,8 +82,8 @@ vector<vector<int>> readGraph(char *filename, int* nEdge, int* vLeft, int* vRigh
             // if edge has been processed
             else if (!left) {
                 left = true;
-                G[u].push_back(v + *vLeft);
-                G[v + *vLeft].push_back(u);
+                G[u].push_back(v + vLeft);
+                G[v + vLeft].push_back(u);
                 u = 0; v = 0;           
             }
         }
@@ -89,67 +92,96 @@ vector<vector<int>> readGraph(char *filename, int* nEdge, int* vLeft, int* vRigh
     return G;
 }
 
-vector<int> preProcessing(vector<vector<int>>* G) {
-    int nNodes = (*G).size();
+std::vector<int> preProcessing(graph& G, const int& nNodes) {
 
     // sorting in decreasing order of degrees
-    vector<int> idx(nNodes);
-    iota(idx.begin(), idx.end(), 0);
-    sort(idx.begin(), idx.end(),
-       [&G](int i1, int i2) {return (*G)[i1].size() > (*G)[i2].size();});
+    std::vector<int> idx(nNodes);
+
+    tbb::parallel_for(tbb::blocked_range<int>(0, nNodes), [&](tbb::blocked_range<int> r) {
+        for (int i = r.begin(); i < r.end(); ++i){
+            idx[i] = i;
+        }
+    });
     
-    vector<int> rank(nNodes);
+    tbb::parallel_sort(idx.begin(), idx.end(), [&G](int i1, int i2) {return G[i1].size() > G[i2].size();});
+    
+    std::vector<int> rank(nNodes);
+    
     tbb::parallel_for(tbb::blocked_range<int>(0, nNodes), [&](tbb::blocked_range<int> r) {
         for (int i = r.begin(); i < r.end(); ++i){
             rank[idx[i]] = i;
         }
     });
 
+    tbb::parallel_for(tbb::blocked_range<int>(0, nNodes), [&](tbb::blocked_range<int> r) {
+        for (int i = r.begin(); i < r.end(); ++i){
+            tbb::parallel_sort(G[i].begin(), G[i].end(), [&rank](int i1, int i2) {return rank[i1] > rank[i2];});
+        }
+    });
+
     return rank;
 }
 
-phmap::flat_hash_map<tuple<int, int>, vector<int>> getWedges(vector<vector<int>>* G, vector<int>* rank) {
-    int nNodes = (*G).size();
+std::vector<wedgeMap> getWedges(const graph& G, const std::vector<int>& rank, const int& nNodes) {
+
+    int partitions = nNodes / 64;
     
-    phmap::flat_hash_map<tuple<int, int>, vector<int>> W;
+    std::vector<wedgeMap> wedgeMapList(partitions);
 
-    for (int u1 = 0; u1 < nNodes; ++u1){
-        for (int i = 0; i < (*G)[u1].size(); ++i) {
-            int v = (*G)[u1][i];
-            if ((*rank)[v] > (*rank)[u1]) {
-                for (int j = 0; j < (*G)[v].size(); ++j) {
-                    int u2 = (*G)[v][j];
-                    if ((*rank)[u2] > (*rank)[u1])
-                        W[make_tuple(u1, u2)].push_back(v);
-                }
-            }
+    int partitionSize = nNodes / partitions;
+
+    tbb::parallel_for(tbb::blocked_range<int>(0, partitions), [&](tbb::blocked_range<int> b) {
+        for (int s = b.begin(); s < b.end(); ++s) {
+            int start = partitionSize * s;
+            tbb::parallel_for(tbb::blocked_range<int>(start, (s == partitions - 1) ? nNodes : start + partitionSize), [&](tbb::blocked_range<int> r) {
+                for (long long u1 = r.begin(); u1 < r.end(); ++u1)
+                    for (int v : G[u1])
+                        if (rank[v] > rank[u1])
+                            for (long long u2 : G[v])
+                                if (rank[u2] > rank[u1])
+                                    wedgeMapList[s][(u1 + u2) * (u1 + u2 + 1) / 2 + u2] += 1;
+                                else
+                                    break;
+                        else
+                            break;
+            });
         }
-    }
-    return W;
+    });
+
+    return wedgeMapList;
 }
 
-int nChooseK(int n, int k){
-    if (k > n) return 0;
-    if (k * 2 > n) k = n-k;
-    if (k == 0) return 1;
+int countEWedges(const std::vector<wedgeMap>& wedgeMapList) {
 
-    int result = n;
-    for(int i = 2; i <= k; ++i) {
-        result *= (n-i+1);
-        result /= i;
-    }
-    return result;
+    int partitions = wedgeMapList.size();
+
+    std::vector<int> wedgeCounts(partitions);
+    tbb::parallel_for(tbb::blocked_range<int>(0, partitions), [&](tbb::blocked_range<int> r) {
+        for (int s = r.begin(); s < r.end(); ++s) {
+            wedgeMap W = wedgeMapList[s];
+            int B = 0;
+            for (auto const& w : W) {
+                int n = w.second;
+                B += n * (n - 1) / 2;
+            }
+            wedgeCounts[s] = B;
+        }
+    });
+
+    return tbb::parallel_reduce( 
+            tbb::blocked_range<int>(0, partitions),
+            0,
+            [&](tbb::blocked_range<int> r, int count)
+            {
+                for (int i = r.begin(); i < r.end(); ++i) {
+                    count += wedgeCounts[i];
+                }
+
+                return count;
+            }, std::plus<int>() );
 }
 
-int countEWedges(phmap::flat_hash_map<tuple<int, int>, vector<int>> *W) {
-    int B = 0;
-    for (auto const& w : *W) {
-        B += nChooseK(w.second.size(), 2);
-    }
-    return B;
-}
-
-auto get_time() {return chrono::high_resolution_clock::now(); }
+auto get_time() {return std::chrono::high_resolution_clock::now(); }
 
 int main(int argc, char *argv[]) {
 
@@ -158,24 +190,24 @@ int main(int argc, char *argv[]) {
         return 1;
 	}
 
-    auto start = get_time();
-
     char *filename = argv[1];
 
     int nEdge, vLeft, vRight;
 
-    vector<vector<int>> G = readGraph(filename, &nEdge, &vLeft, &vRight);
+    graph G = readGraph(filename, nEdge, vLeft, vRight);
     
-    vector<int> rank = preProcessing(&G);
+    std::vector<int> rank = preProcessing(G, vLeft + vRight);
 
-    phmap::flat_hash_map<tuple<int, int>, vector<int>> W = getWedges(&G, &rank);
+    auto start = get_time();
 
-    int B = countEWedges(&W);
+    std::vector<wedgeMap> W = getWedges(G, rank, vLeft + vRight);
+
+    int B = countEWedges(W);
     
     std::cout << "Number of butterflies: " << B << "\n";
 
     auto finish = get_time();
-    auto duration = chrono::duration_cast<chrono::milliseconds>(finish-start);
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(finish-start);
     std::cout << "Elapsed time = " << duration.count() << " ms\n";
 
     return 0;
