@@ -1,4 +1,22 @@
-// g++ count.cpp -O3 -ltbb
+/* 
+    Prints the butterfly count of simple bipartite graphs
+
+    To run:
+        g++ butterflyCount.cpp -O3 -ltbb
+        ./a.out path_to_dataset
+    
+    Dataset format:
+        |E| |U| |V|
+        u1 v1
+        u2 v1
+        u2 v2
+    
+    Example dataset:
+        3 2 2
+        0 0
+        0 1
+        1 0
+*/
 
 #include <chrono>
 #include <iostream>
@@ -6,7 +24,7 @@
 #include "parallel_hashmap/phmap.h"
 #include "parallel_hashmap/phmap_utils.h"
 #include "tbb/parallel_for.h"
-#include <tbb/parallel_reduce.h>
+#include "tbb/parallel_reduce.h"
 #include "tbb/parallel_sort.h"
 #include "tbb/spin_mutex.h"
 
@@ -123,8 +141,11 @@ std::vector<int> preProcessing(graph& G, const int& nNodes) {
 }
 
 std::vector<wedgeMap> getWedges(const graph& G, const std::vector<int>& rank, const int& nNodes) {
-
+    
     int partitions = nNodes / 64;
+
+    if (nNodes < 64)
+        partitions = 1;
     
     std::vector<wedgeMap> wedgeMapList(partitions);
 
