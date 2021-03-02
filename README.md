@@ -5,27 +5,27 @@ This repository uses Intel Threading Building Blocks, which needs to be installe
 Parallel hashmap from https://github.com/greg7mdp/parallel-hashmap.
 
 To run the parallel butterfly counting algorithm:
- <br />
+<br />
 g++ butterflyCount.cpp -O3 -ltbb
- <br />
+<br />
 ./a.out path_to_dataset
     
 Dataset format:
- <br />
+<br />
 |E| |U| |V|
- <br />
+<br />
 u1 v1
- <br />
+<br />
 u2 v1
- <br />
+<br />
 u2 v2
 
 Example dataset:
 <br />
 3 2 2
- <br />
+<br />
 0 0
- <br />
+<br />
 0 1
- <br />
+<br />
 1 0
