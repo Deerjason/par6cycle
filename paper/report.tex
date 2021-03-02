@@ -196,7 +196,8 @@ Given a bipartite graph G, this algorithm applies G to the preprocessing and wed
 The summation of applying the modified BFS algorithm in algorithm 3 to each retrieved wedge is then returned as the total induced 6-cycle count.
 
 The code used for this report is available at https://github.com/Deerjason/par6cycle.
-Parallelization is achieved through the use of Intel Threading Building Blocks due to its multi-core capabilities.
+Parallelization is achieved through the use of Intel Threading Building Blocks due to its multi-core capabilities and strong tasking support.
+Since we will be dealing with graphs with millions of nodes and edges, an efficient parallel library is needed.
 Currently, parallel butterfly counting is implemented in the develop branch in \textit{butterflyCount.cpp}.
 
 \bibliography{report.bib}{}
