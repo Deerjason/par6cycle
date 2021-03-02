@@ -185,7 +185,7 @@ The algorithm takes as input a wedge \textit{w = (u1, u2, v)} and returns the nu
     \State $W \gets GetWedges(G, R)$
     \State $c \gets $0
     \ForEach {$w \in W$}
-        \State $c \gets c + BFS(G, R, w)$
+        \State $c \gets c + BFSCount(G, R, w)$
     \EndFor
     \State return $c$
 \end{algorithmic}
