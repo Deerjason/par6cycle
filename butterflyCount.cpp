@@ -26,13 +26,12 @@
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_reduce.h"
 #include "tbb/parallel_sort.h"
-#include "tbb/spin_mutex.h"
 
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-typedef phmap::parallel_flat_hash_map<long long, int, phmap::priv::hash_default_hash<long long>, phmap::priv::hash_default_eq<long long>, phmap::priv::Allocator<phmap::priv::Pair<const long long, int>>, 4, tbb::spin_mutex> wedgeMap;
+typedef phmap::parallel_flat_hash_map<long long, int> wedgeMap;
 typedef std::vector<std::vector<int>> graph;
 
 graph readGraph(const char *filename, int& nEdge, int& vLeft, int& vRight) {
@@ -133,7 +132,7 @@ std::vector<int> preProcessing(graph& G, const int& nNodes) {
 
     tbb::parallel_for(tbb::blocked_range<int>(0, nNodes), [&](tbb::blocked_range<int> r) {
         for (int i = r.begin(); i < r.end(); ++i){
-            tbb::parallel_sort(G[i].begin(), G[i].end(), [&rank](int i1, int i2) {return rank[i1] > rank[i2];});
+            std::sort(G[i].begin(), G[i].end(), [&rank](int i1, int i2) {return rank[i1] > rank[i2];});
         }
     });
 
@@ -154,18 +153,17 @@ std::vector<wedgeMap> getWedges(const graph& G, const std::vector<int>& rank, co
     tbb::parallel_for(tbb::blocked_range<int>(0, partitions), [&](tbb::blocked_range<int> b) {
         for (int s = b.begin(); s < b.end(); ++s) {
             int start = partitionSize * s;
-            tbb::parallel_for(tbb::blocked_range<int>(start, (s == partitions - 1) ? nNodes : start + partitionSize), [&](tbb::blocked_range<int> r) {
-                for (long long u1 = r.begin(); u1 < r.end(); ++u1)
-                    for (int v : G[u1])
-                        if (rank[v] > rank[u1])
-                            for (long long u2 : G[v])
-                                if (rank[u2] > rank[u1])
-                                    wedgeMapList[s][(u1 + u2) * (u1 + u2 + 1) / 2 + u2] += 1;
-                                else
-                                    break;
-                        else
-                            break;
-            });
+            int end = (s == partitions - 1) ? nNodes : start + partitionSize;
+            for (long long u1 = start; u1 < end; ++u1)
+                for (int v : G[u1])
+                    if (rank[v] > rank[u1])
+                        for (long long u2 : G[v])
+                            if (rank[u2] > rank[u1])
+                                wedgeMapList[s][(u1 + u2) * (u1 + u2 + 1) / 2 + u2] += 1;
+                            else
+                                break;
+                    else
+                        break;
         }
     });
 
@@ -179,7 +177,7 @@ int countEWedges(const std::vector<wedgeMap>& wedgeMapList) {
     std::vector<int> wedgeCounts(partitions);
     tbb::parallel_for(tbb::blocked_range<int>(0, partitions), [&](tbb::blocked_range<int> r) {
         for (int s = r.begin(); s < r.end(); ++s) {
-            wedgeMap W = wedgeMapList[s];
+            const wedgeMap& W = wedgeMapList[s];
             int B = 0;
             for (auto const& w : W) {
                 int n = w.second;
