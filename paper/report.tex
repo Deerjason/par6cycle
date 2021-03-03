@@ -66,16 +66,22 @@ Shi and Shun \cite{shi2019parallel} recently designed a parallel butterfly count
 Given the relevance of bipartite graphs in real-world relationships, it is desirable to find larger cycles within these graphs.
 Karimi and Banihashemi \cite{karimi2012message} designed a message-passing algorithm for counting cycles of length \textit{g} to \textit{2g-2} in bipartite graphs, where \textit{g} is the girth of the graph.
 Dehghan and Banihashemi \cite{dehghan2019counting} proposed an algorithm that uses breadth-first search to count cycles of length \textit{g}  to \textit{g+4} in bipartite graphs.
-These sequential algorithms form a possible basis for developing efficient parallel counting algorithms.
+However, these sequential algorithms have only been tested on small bipartite graphs.
 Parallizing algorithms that count larger cycles is extremely valuable due to their increased complexity.
 This paper presents a framework for counting induced 6-cycles (see Figure 2) in bipartite graphs which uses the affordances of parallization to maximize efficiency.
 
 \section{Notation}
-We work on a simple bipartite graph \textit{G = (U, V, E)} where \textit{U} is the set of nodes in the left set, \textit{V} is the set of nodes in right set, and \textit{E} is the set of edges.
-The neighbors of a node \textit{v} is denoted by \textit{N(v)}. The ranking of \textit{v} is denoted by \textit{rank(v)}.
-An induced 6-cycle is a set of six nodes \textit{u1, u2, u3} $\in$ \textit{U} and \textit{v1, v2, v3} $\in$ \textit{V} such that its internal edges exactly form a cycle.
+We work on a simple and undirected bipartite graph \textit{G = (U, V, E)} where \textit{U} is the set of nodes in the left set, \textit{V} is the set of nodes in right set, and \textit{E} is the set of edges.
+The neighbors of a node \textit{v} is denoted by \textit{N(v)}.
+The ranking of a node \textit{v} is denoted by \textit{R(v)}.
+A \textbf{wedge} is a set of three nodes \textit{u1, u2} $\in$ \textit{U} and \textit{v} $\in$ \textit{V} composed of edges \textit{(u1, v), (u2, v)} $\in$ \textit{E}. 
+We call the nodes \textit{u1, u2} \textbf{endpoints} and the node \textit{v} the \textbf{center}.
+An \textbf{induced 6-cycle} is a set of six nodes \textit{u1, u2, u3} $\in$ \textit{U} and \textit{v1, v2, v3} $\in$ \textit{V} such that its internal edges exactly form a cycle.
 
 \section{Algorithm}
+
+We introduce a parallel algorithm for counting induced 6-cycles in bipartite graphs.
+Our algorithm extends the parallel wedge retrieval algorithm proposed by Shi and Shun \cite{shi2019parallel}.
 
 \begin{algorithm}[H]
 \caption{Preprocessing(\textit{G})}
@@ -91,18 +97,23 @@ An induced 6-cycle is a set of six nodes \textit{u1, u2, u3} $\in$ \textit{U} an
 \end{algorithmic}
 \end{algorithm}
 
+We give a preprocessing algorithm (Algorithm 1) that takes as input a bipartite graph and returns a ranking of nodes in decreasing order of degree.
+Preprocessing also sorts neighbors by decreasing order of rank.
+Shi and Shun \cite{shi2019parallel} proved that using approximate degree ordering, complement degeneracy ordering, and approximate complement degeneracy ordering also gives work-efficient bounds.
+By establishing an ordering of nodes, we can avoid traversing the same induced 6-cycle twice.
+
 \begin{algorithm}[H]
 \caption{GetWedges(\textit{G}, \textit{R})}
 \hspace*{\algorithmicindent} \textbf{Input:} \textit{G}: graph, \textit{R}: ranking of nodes \\
 \hspace*{\algorithmicindent} \textbf{Output:} \textit{W}: list of wedges
 \begin{algorithmic}[1]
-    \State $W \gets$ [ ]
+    \State initialize $W$
     \ForEach {$u1 \in U \cup V$}
-        \ForEach {$v1 \in N(u1)$}
-            \If{$R(v1) > R(u1)$}
-                \ForEach {$u2 \in N(v1)$}
+        \ForEach {$v \in N(u1)$}
+            \If{$R(v) > R(u1)$}
+                \ForEach {$u2 \in N(v)$}
                     \If{$R(u2) > R(u1)$}
-                        \State $W.append((u1, u2, v1))$
+                        \State $W((u1, u2, v))$
                     \Else
                         \State break
                     \EndIf
@@ -116,13 +127,18 @@ An induced 6-cycle is a set of six nodes \textit{u1, u2, u3} $\in$ \textit{U} an
 \end{algorithmic}
 \end{algorithm}
 
+We define a wedge retrieval algorithm, GetWedges (Algorithm 2), that takes as input a preprocessed graph and its ranking \textit{R}.
+We use \textit{W} to denote a parallel unordered container such that \textit{W(x)} stores \textit{x} in the container.
+GetWedges is based off of Shi and Shun \cite{shi2019parallel} wedge retrieval algorithm which enables the parallel processing of wedges.
+For all nodes \textit{u1} in \textit{G}, the algorithm retrieves all wedges with endpoints \textit{u1, u2} and center \textit{v} such that \textit{u2} and \textit{v} both have rank greater than \textit{u1}.
+
 \begin{algorithm}[H]
-\caption{BFS(\textit{G}, \textit{R}, \textit{w})}
+\caption{BFSCount(\textit{G}, \textit{R}, \textit{w})}
 \hspace*{\algorithmicindent} \textbf{Input:} \textit{G}: graph, \textit{R}: ranking of nodes, and \textit{w}: wedge \\
 \hspace*{\algorithmicindent} \textbf{Output:} \textit{c}: count of induced 6-cycles
 \begin{algorithmic}[1]
     \State $c \gets 0$
-    \State $u1, u2, v1 \gets w$
+    \State $u1, u2, v \gets w$
     \State For any node $u \in G, d(u)$ = $\infty$
     \State $d(u2) \gets 0$
     \State Let $Q \gets$ queue
@@ -133,15 +149,15 @@ An induced 6-cycle is a set of six nodes \textit{u1, u2, u3} $\in$ \textit{U} an
             \If{$d(y) = \infty$}
                 \State $d(y) \gets d(x) + 1$
                 \If{$d(y) = 1$}
-                    \If{$R(y) > R(v1)$ and $y \not\in N(u1)$}
+                    \If{$R(y) > R(v)$ and $y \not\in N(u1)$}
                         \State $Q.enqueue(y)$
                     \EndIf
                 \ElsIf{$d(y) = 2$}
-                    \If{$y \not\in N(v1)$}
+                    \If{$y \not\in N(v)$}
                         \State $Q.enqueue(y)$
                     \EndIf
                 \ElsIf{$d(y) = 3$}
-                    \If{$R(y) > R(v1)$ and $y \not\in N(u2)$}
+                    \If{$R(y) > R(v)$ and $y \not\in N(u2)$}
                         \State $Q.enqueue(y)$
                     \EndIf
                 \Else
@@ -156,6 +172,9 @@ An induced 6-cycle is a set of six nodes \textit{u1, u2, u3} $\in$ \textit{U} an
     \State return $c$
 \end{algorithmic}
 \end{algorithm}
+
+BFSCount (Algorithm 3) is a modified version of the traditional breadth-first search algorithm.
+The algorithm takes as input a wedge \textit{w = (u1, u2, v)} and returns the number of induced 6-cycles with nodes \textit{u1, u2, u3} $\in$ \textit{U} and \textit{v, v2, v3} $\in$ \textit{V} such that \textit{v2} and \textit{v3} both have rank greater than \textit{v}.
 
 \begin{algorithm}[H]
 \caption{Par6CycleCount(\textit{G})}
@@ -172,9 +191,9 @@ An induced 6-cycle is a set of six nodes \textit{u1, u2, u3} $\in$ \textit{U} an
 \end{algorithmic}
 \end{algorithm}
 
-Algorithms 1 and 2 are adapted from the wedge traversal algorithm by Shi and Shun \cite{shi2019parallel}.
-Algorithm 3 shows an adapted version of BFS traversal on a wedge to obtain its associated 6-cycle counts.
-Algorithm 4 is the initial plan for developing a parallel induced 6-cycle counting algorithm.
+We now describe the full induced 6-cycle counting algorithm, which is given as Par6CycleCount in algorithm 4.
+Given a bipartite graph G, this algorithm applies G to the preprocessing and wedge retrieval algorithms described in algorithms 1 and 2, respectively.
+The summation of applying the modified BFS algorithm in algorithm 3 to each retrieved wedge is then returned as the total induced 6-cycle count.
 
 The code used for this report is available at https://github.com/Deerjason/par6cycle.
 Parallization is achieved through the use of Intel Threading Building Blocks due to its multicore capabilities.
