@@ -194,6 +194,8 @@ The algorithm takes as input a wedge \textit{w = (u1, u2, v)} and returns the nu
 We now describe the full induced 6-cycle counting algorithm, which is given as Par6CycleCount in algorithm 4.
 Given a bipartite graph G, this algorithm applies G to the preprocessing and wedge retrieval algorithms described in algorithms 1 and 2, respectively.
 The summation of applying the modified BFS algorithm in algorithm 3 to each retrieved wedge is then returned as the total induced 6-cycle count.
+The expectations for Par6CycleCount is to have a runtime comparable to parallel butterfly counting.
+Ideally, it will be less than twice the runtime of butterfly counting in the same graph.
 
 The code used for this report is available at https://github.com/Deerjason/par6cycle.
 Parallelization is achieved through the use of Intel Threading Building Blocks due to its multi-core capabilities and strong tasking support.
