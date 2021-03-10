@@ -204,6 +204,46 @@ The summation of applying the modified BFS algorithm in algorithm 3 to each retr
 The expectations for Par6CycleCount is to have a runtime comparable to parallel butterfly counting.
 Ideally, it will be about twice the runtime of butterfly counting in the same graph.
 
+\begin{algorithm}[H]
+\caption{WedgeADJ(\textit{G}, \textit{R})}
+\hspace*{\algorithmicindent} \textbf{Input:} \textit{G}: graph, \textit{R}: ranking of nodes \\
+\hspace*{\algorithmicindent} \textbf{Output:} \textit{G'}: wedge adjacency list
+\begin{algorithmic}[1]
+    \State initialize $W$, $G'$
+    \ForEach {$u1 \in U$}
+        \ForEach {$v \in N(u1)$}
+            \If{$R(v) > R(u1)$}
+                \ForEach {$u2 \in N(v)$}
+                    \If{$R(u2) > R(u1)$}
+                        \ForEach {$wedge w \in W(u1)$}
+                            \State $a1, a2, b = w$
+                            \If{$a2 != u2 and b != v$}
+                                \State add (u1, u2, v) to w in G'
+                                \State add w to (u1, u2, v) in G'
+                            \EndIf
+                        \EndFor
+                        \ForEach {$wedge w \in W(u2)$}
+                            \State $a1, a2, b = w$
+                            \If{$a2 != u1 and b != v$}
+                                \State add (u1, u2, v) to w in G'
+                                \State add w to (u1, u2, v) in G'
+                            \EndIf
+                        \EndFor
+                        \State add (u1, u2, v) to W[u1]
+                        \State add (u1, u2, v) to W[u2]
+                    \Else
+                        \State break
+                    \EndIf
+                \EndFor
+            \Else
+                \State break
+            \EndIf
+        \EndFor
+    \EndFor
+    \State return $G'$
+\end{algorithmic}
+\end{algorithm}
+
 The code used for this report is available at https://github.com/Deerjason/par6cycle.
 Parallelization is achieved through the use of Intel Threading Building Blocks due to its multi-core capabilities and strong tasking support.
 Since we will be dealing with graphs with millions of nodes and edges, an efficient parallel library is needed.
