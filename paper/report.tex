@@ -7,17 +7,23 @@
 \usepackage[margin=1in]{geometry}
 
 \usepackage[utf8]{inputenc}
-\usepackage{amsmath}
-\usepackage{algpseudocode}
 
+\usepackage{amsmath}
 \usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\algnewcommand\algorithmicforeach{\textbf{parallel for each}}
+\algdef{S}[FOR]{ForEach}[1]{\algorithmicforeach\ #1\ \algorithmicdo}
+\algnewcommand\algorithmicinput{\textbf{Input:}}
+\algnewcommand\algorithmicoutput{\textbf{Output:}}
+\algnewcommand\Input{\item[\algorithmicinput]}%
+\algnewcommand\Output{\item[\algorithmicoutput]}%
+\algnewcommand{\lIf}[2]{% \IfThen{<if>}{<then>}
+  \State \algorithmicif\ #1\ \algorithmicthen\ #2}
+
 \usepackage{graphicx}
 \usepackage[justification=centering]{caption}
 
 \usepackage{cite}
-
-\algnewcommand\algorithmicforeach{\textbf{parallel for each}}
-\algdef{S}[FOR]{ForEach}[1]{\algorithmicforeach\ #1\ \algorithmicdo}
 
 \title{Induced 6-Cycle Counting in Bipartite Graphs}
 
@@ -83,17 +89,19 @@ An \textbf{induced 6-cycle} is a set of six nodes \textit{u1, u2, u3} $\in$ \tex
 We introduce a parallel algorithm for counting induced 6-cycles in bipartite graphs.
 Our algorithm extends the parallel wedge retrieval algorithm proposed by Shi and Shun \cite{shi2019parallel}.
 
-\begin{algorithm}[H]
-\caption{Preprocessing(\textit{G})}
-\hspace*{\algorithmicindent} \textbf{Input:} \textit{G}: graph \\
-\hspace*{\algorithmicindent} \textbf{Output:} \textit{R}: ranking of nodes
+\setlength{\textfloatsep}{0pt}
+\begin{algorithm}[!t]
+\caption{\textsc{Preprocessing($G$)}}
+\label{alg:Preprocessing}
 \begin{algorithmic}[1]
-    \State $X \gets Sort(U \cup V)$ \Comment sort vertices in decreasing order of degree
-    \State Let $x$'s rank $R(x)$ be its index in $X$
-    \ForEach {$x \in X$}
-        \State $N(x) \gets Sort({y | (x, y) \in E})$ \Comment sort neighbors by decreasing order of rank
-    \EndFor
-    \State return $R$
+    \Input $G$: graph
+    \Output $R$: ranking of nodes
+        \State $X \gets Sort(U \cup V)$ \Comment sort vertices in decreasing order of degree
+        \State Let $x$'s rank $R(x)$ be its index in $X$
+        \ForEach {$x \in X$}
+            \State $N(x) \gets Sort({y | (x, y) \in E})$ \Comment sort neighbors by decreasing order of rank
+        \EndFor
+        \State \textbf{return} $R$
 \end{algorithmic}
 \end{algorithm}
 
@@ -123,7 +131,7 @@ By establishing an ordering of nodes, we can avoid traversing the same induced 6
             \EndIf
         \EndFor
     \EndFor
-    \State return $W$
+    \State \textbf{return} $W$
 \end{algorithmic}
 \end{algorithm}
 
@@ -171,7 +179,7 @@ Although this point was originally applied to butterfly counting, the same logic
             \EndIf
         \EndFor
     \EndWhile
-    \State return $c$
+    \State \textbf{return} $c$
 \end{algorithmic}
 \end{algorithm}
 
@@ -194,7 +202,7 @@ The occurrences of \textit{u1} at depth level 4 is then returned as the total in
     \ForEach {$w \in W$}
         \State $c \gets c + BFSCount(G, R, w)$
     \EndFor
-    \State return $c$
+    \State \textbf{return} $c$
 \end{algorithmic}
 \end{algorithm}
 
@@ -204,6 +212,7 @@ The summation of applying the modified BFS algorithm in algorithm 3 to each retr
 The expectations for Par6CycleCount is to have a runtime comparable to parallel butterfly counting.
 Ideally, it will be about twice the runtime of butterfly counting in the same graph.
 
+IN PROGRESS:
 \begin{algorithm}[H]
 \caption{WedgeADJ(\textit{G}, \textit{R})}
 \hspace*{\algorithmicindent} \textbf{Input:} \textit{G}: graph, \textit{R}: ranking of nodes \\
@@ -215,16 +224,16 @@ Ideally, it will be about twice the runtime of butterfly counting in the same gr
             \If{$R(v) > R(u1)$}
                 \ForEach {$u2 \in N(v)$}
                     \If{$R(u2) > R(u1)$}
-                        \ForEach {$wedge w \in W(u1)$}
-                            \State $a1, a2, b = w$
-                            \If{$a2 != u2 and b != v$}
+                        \ForEach {wedge $w \in W(u1)$}
+                            \State $a2, b = w$
+                            \If{$a2$ != $u2$ and $b$ != $v$}
                                 \State add (u1, u2, v) to w in G'
                                 \State add w to (u1, u2, v) in G'
                             \EndIf
                         \EndFor
-                        \ForEach {$wedge w \in W(u2)$}
-                            \State $a1, a2, b = w$
-                            \If{$a2 != u1 and b != v$}
+                        \ForEach {wedge $w \in W(u2)$}
+                            \State $a1, b = w$
+                            \If{$a2$ != $u1$ and $b$ != $v$}
                                 \State add (u1, u2, v) to w in G'
                                 \State add w to (u1, u2, v) in G'
                             \EndIf
@@ -240,7 +249,7 @@ Ideally, it will be about twice the runtime of butterfly counting in the same gr
             \EndIf
         \EndFor
     \EndFor
-    \State return $G'$
+    \State \textbf{return} $G'$
 \end{algorithmic}
 \end{algorithm}
 
