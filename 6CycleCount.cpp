@@ -25,13 +25,11 @@
 #include "parallel_hashmap/phmap_utils.h"
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_reduce.h"
-#include "tbb/parallel_sort.h"
 
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-typedef phmap::parallel_flat_hash_map<long long, int> wedgeMap;
 typedef std::vector<std::vector<int>> graph;
 
 graph readGraph(const char *filename, int& nEdge, int& vLeft, int& vRight) {
