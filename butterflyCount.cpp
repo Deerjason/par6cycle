@@ -76,7 +76,7 @@ graph readGraph(const char *filename, int& nEdge, int& vLeft, int& vRight) {
         headerEnd += 1;
         c = f[headerEnd];
     }
-    G.resize(vLeft + vRight);
+    G.reserve(vLeft + vRight);
 
     int u = 0, v = 0;
     bool left = true;
@@ -120,7 +120,7 @@ std::vector<int> preProcessing(graph& G, const int& nNodes) {
         }
     });
     
-    tbb::parallel_sort(idx.begin(), idx.end(), [&G](int i1, int i2) {return G[i1].size() > G[i2].size();});
+    std::sort(idx.begin(), idx.end(), [&G](int i1, int i2) {return G[i1].size() > G[i2].size();});
     
     std::vector<int> rank(nNodes);
     
