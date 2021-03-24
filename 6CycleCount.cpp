@@ -107,9 +107,27 @@ graph readGraph(const char *filename, int& nEdge, int& vLeft, int& vRight) {
     return G;
 }
 
+
+/*
+Proof of Correctness
+
+We will prove this algorithm is correct by contradiction.
+
+Say that there exists a set of nodes that is inaccurately counted as an induced 6-cycle.
+Since our algorithm checks for inducedness given a set of 6 unique nodes, every node set counted must be an induced 6-cycle, contradicting our claim.
+
+Say that there exists an induced 6-cycle that is counted twice.
+Since there exists a specific ordering of wedge traversal in our algorithm, a wedge can't be processed twice.
+This contradicts our claim of duplicity in induced 6-cycle counting.
+
+Say that there exists an induced 6-cycle x = {u1, u2, u3, v1, v2, v3} that isn't counted.
+Then x contains three wedges a = {u2, u3, v2}, b = {u1, u3, v3}, and c = {u2, u1, v1}, which the algorithm processes in that order.
+Therefore, when c is processed, the algorithm counts the triangle of wedges a, b, and c as an induced 6-cycle, contradicting our claim.
+
+Since all possible cases lead to contradiction, this algorithm returns the correct induced 6-cycle count.
+*/
 int getCount(const graph& G, const int& vLeft) {
-    std::vector<phmap::flat_hash_map<int, std::vector<int>>> W;
-    W.resize(vLeft);
+    phmap::flat_hash_map<int, std::vector<int>> W[vLeft];
     
     int count = 0;
 
@@ -117,17 +135,14 @@ int getCount(const graph& G, const int& vLeft) {
         for (int v1 : G[u1])
             for (int u2 : G[v1])
                 if (u2 > u1) {
-                    for (auto const& w : W[u1]) {
+                    for (auto const& w : W[u2]) {
                         int u3 = w.first;
-                        if (std::find(W[u1][u3].begin(), W[u1][u3].end(), v1) == W[u1][u3].end())
+                        if (std::find(w.second.begin(), w.second.end(), v1) == w.second.end())
                             for (int v2 : w.second)
-                                if (std::find(W[u2][u3].begin(), W[u2][u3].end(), v2) == W[u2][u3].end()) {
-                                    int c = 0;
-                                    for (int v3 : W[u2][u3])
-                                        if (std::find(W[u1][u3].begin(), W[u1][u3].end(), v3) == W[u1][u3].end())
-                                            c++;
-                                    count += c;
-                                }
+                                if (std::find(W[u1][u3].begin(), W[u1][u3].end(), v2) == W[u1][u3].end())
+                                    for (int v3 : W[u1][u3])
+                                        if (std::find(W[u2][u3].begin(), W[u2][u3].end(), v3) == W[u2][u3].end())
+                                            count++;
                     }
                     W[u2][u1].push_back(v1);
                 }
