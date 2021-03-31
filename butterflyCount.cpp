@@ -25,6 +25,7 @@
 #include "parallel_hashmap/phmap_utils.h"
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_reduce.h"
+#include "tbb/parallel_sort.h"
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -75,7 +76,7 @@ graph readGraph(const char *filename, int& nEdge, int& vLeft, int& vRight) {
         headerEnd += 1;
         c = f[headerEnd];
     }
-    G.reserve(vLeft + vRight);
+    G.resize(vLeft + vRight);
 
     int u = 0, v = 0;
     bool left = true;
@@ -119,7 +120,7 @@ std::vector<int> preProcessing(graph& G, const int& nNodes) {
         }
     });
     
-    std::sort(idx.begin(), idx.end(), [&G](int i1, int i2) {return G[i1].size() > G[i2].size();});
+    tbb::parallel_sort(idx.begin(), idx.end(), [&G](int i1, int i2) {return G[i1].size() > G[i2].size();});
     
     std::vector<int> rank(nNodes);
     

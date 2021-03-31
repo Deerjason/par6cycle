@@ -74,7 +74,7 @@ graph readGraph(const char *filename, int& nEdge, int& vLeft, int& vRight) {
         headerEnd += 1;
         c = f[headerEnd];
     }
-    G.reserve(vLeft + vRight);
+    G.resize(vLeft + vRight);
 
     int u = 0, v = 0;
     bool left = true;
@@ -126,25 +126,143 @@ Therefore, when c is processed, the algorithm counts the triangle of wedges a, b
 
 Since all possible cases lead to contradiction, this algorithm returns the correct induced 6-cycle count.
 */
+
+bool find (const std::vector<std::pair<int, int>>& W, const int& start, const int& end, const int& u, const int& v, int& m) {
+    if (m != -1) {
+        int idx = m;
+        while (idx < end) {
+            const std::pair<int, int>& curr = W[idx];
+            if (curr.first != u)
+                break;
+            if (curr.second == v)
+                return true;
+            idx++;
+        }
+        idx = m - 1;
+        while (idx >= start) {
+            const std::pair<int, int>& curr = W[idx];
+            if (curr.first != u)
+                break;
+            if (curr.second == v)
+                return true;
+            idx--;
+        }
+        return false;
+    }
+
+    int l = start;
+    int r = end - 1;
+    while (l <= r) {
+        m = (l + r) / 2;
+
+        const std::pair<int, int>& wedge = W[m];
+        
+        if (wedge.first < u)
+            l = m + 1;
+        else if (wedge.first > u)
+            r = m - 1;
+        else if (wedge.second == v)
+            return true;
+        else {
+            int idx = m + 1;
+            while (idx < end) {
+                const std::pair<int, int>& curr = W[idx];
+                if (curr.first != u)
+                    break;
+                if (curr.second == v)
+                    return true;
+                idx++;
+            }
+            idx = m - 1;
+            while (idx >= start) {
+                const std::pair<int, int>& curr = W[idx];
+                if (curr.first != u)
+                    break;
+                if (curr.second == v)
+                    return true;
+                idx--;
+            }
+            return false;
+        }
+    }
+    return false;
+}
+
 int getCount(const graph& G, const int& vLeft) {
-    phmap::flat_hash_map<int, std::vector<int>> W[vLeft];
-    
+
+    std::vector<int> partitions(vLeft);
+
+    for (int u = 0; u < vLeft; ++u) {
+        int val = 0;
+        for (int v : G[u]) {
+            for (int u2 : G[v]) {
+                if (u2 < u) {
+                    val++;
+                }
+            }
+        }
+        if (u == 0) {
+            partitions[u] = val;
+        }
+        else {
+            partitions[u] = partitions[u - 1] + val;
+        }
+    }
+
+    std::vector<std::pair<int, int>> W(partitions[vLeft - 1]);
+
+    std::vector<int> wedgeCnt(vLeft);
+
+    int c, m, m2, idx = -1, u3 = -1;
+
+    bool skip = false;
+
     int count = 0;
 
     for (int u1 = 0; u1 < vLeft; ++u1)
         for (int v1 : G[u1])
             for (int u2 : G[v1])
                 if (u2 > u1) {
-                    for (auto const& w : W[u2]) {
-                        int u3 = w.first;
-                        if (std::find(w.second.begin(), w.second.end(), v1) == w.second.end())
-                            for (int v2 : w.second)
-                                if (std::find(W[u1][u3].begin(), W[u1][u3].end(), v2) == W[u1][u3].end())
-                                    for (int v3 : W[u1][u3])
-                                        if (std::find(W[u2][u3].begin(), W[u2][u3].end(), v3) == W[u2][u3].end())
-                                            count++;
+                    for (int w_idx = partitions[u2 - 1]; w_idx < partitions[u2 - 1] + wedgeCnt[u2]; w_idx++) {
+                        const std::pair<int, int>& w = W[w_idx];
+                        if (w.first == u3 && skip)
+                            continue;
+                        u3 = w.first;
+                        m = -1;
+                        skip = find(W, partitions[u1 - 1], partitions[u1 - 1] + wedgeCnt[u1], u3, v1, m);
+                        if (!skip && !find(W, partitions[u1 - 1], partitions[u1 - 1] + wedgeCnt[u1], u3, w.second, m)) {
+                            if (idx != u3) {
+                                c = 0;
+                                m2 = -1;
+                                idx = m;
+                                while (idx < partitions[u1 - 1] + wedgeCnt[u1]) {
+                                    const std::pair<int, int>& curr = W[idx];
+                                    if (curr.first != u3)
+                                        break;
+                                    if (!find(W, partitions[u2 - 1], partitions[u2 - 1] + wedgeCnt[u2], u3, curr.second, m2))
+                                        c++;
+                                    idx++;
+                                }
+                                idx = m - 1;
+                                while (idx >= partitions[u1 - 1]) {
+                                    const std::pair<int, int>& curr = W[idx];
+                                    if (curr.first != u3)
+                                        break;
+                                    if (!find(W, partitions[u2 - 1], partitions[u2 - 1] + wedgeCnt[u2], u3, curr.second, m2))
+                                        c++;
+                                    idx--;
+                                }
+                                idx = u3;
+                            }
+                            count += c;
+                        }
+                            
                     }
-                    W[u2][u1].push_back(v1);
+                    W[partitions[u2 - 1] + wedgeCnt[u2]] = std::make_pair(u1, v1);
+                    wedgeCnt[u2]++;
+                    idx = -1;
+                    u3 = -1;
+                    skip = false;
                 }
     return count;
 }
