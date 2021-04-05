@@ -31,11 +31,10 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-typedef phmap::parallel_flat_hash_map<long long, int> wedgeMap;
+typedef phmap::flat_hash_map<uint64_t, int> wedgeMap;
 typedef std::vector<std::vector<int>> graph;
 
 graph readGraph(const char *filename, int& nEdge, int& vLeft, int& vRight) {
-    graph G;
 
     char *f;
     int size;
@@ -76,12 +75,12 @@ graph readGraph(const char *filename, int& nEdge, int& vLeft, int& vRight) {
         headerEnd += 1;
         c = f[headerEnd];
     }
-    G.resize(vLeft + vRight);
+    graph G(vLeft + vRight);
 
     int u = 0, v = 0;
     bool left = true;
     int count = 0;
-    for (int i = headerEnd + 1; i < size; i++) {
+    for (int i = headerEnd + 1; i < size; ++i) {
         c = f[i];
 
         if (isdigit(c)) {
@@ -154,10 +153,10 @@ std::vector<wedgeMap> getWedges(const graph& G, const std::vector<int>& rank, co
         for (int s = b.begin(); s < b.end(); ++s) {
             int start = partitionSize * s;
             int end = (s == partitions - 1) ? nNodes : start + partitionSize;
-            for (long long u1 = start; u1 < end; ++u1)
-                for (int v : G[u1])
+            for (uint64_t u1 = start; u1 < end; ++u1)
+                for (const int& v : G[u1])
                     if (rank[v] > rank[u1])
-                        for (long long u2 : G[v])
+                        for (const uint64_t& u2 : G[v])
                             if (rank[u2] > rank[u1])
                                 wedgeMapList[s][(u1 + u2) * (u1 + u2 + 1) / 2 + u2] += 1;
                             else
