@@ -26,6 +26,7 @@
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_reduce.h"
 #include "tbb/parallel_scan.h"
+#include "tbb/parallel_sort.h"
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -33,7 +34,7 @@
 
 typedef std::vector<std::vector<int>> graph;
 
-typedef phmap::flat_hash_map<uint64_t, bool> edges;
+typedef phmap::parallel_flat_hash_map<uint64_t, bool> edges;
 
 edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t& vRight, graph& newG) {
 
@@ -76,9 +77,8 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
         headerEnd += 1;
         c = f[headerEnd];
     }
-    graph G(vLeft + vRight);
 
-    edges E(nEdge);
+    graph G(vLeft + vRight);
 
     int u = 0, v = 0;
     bool left = true;
@@ -117,7 +117,7 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
         }
     });
     
-    std::sort(idx.begin(), idx.end(), [&G](int i1, int i2) {return G[i1].size() < G[i2].size();});
+    tbb::parallel_sort(idx.begin(), idx.end(), [&G](int i1, int i2) {return G[i1].size() < G[i2].size();});
     
     std::vector<int> rank(vLeft);
     
@@ -127,18 +127,20 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
         }
     });
 
+    edges E(nEdge);
     newG.resize(vLeft + vRight);
 
-    for (int u = 0; u < G.size(); ++u) {
-        for (int v : G[u]) {
-            if (u < vLeft) {
-                newG[rank[u]].push_back(v);
-                E[(rank[u] + v - vLeft) * (rank[u] + v - vLeft + 1) / 2 + v - vLeft] = true;
+    tbb::parallel_for(tbb::blocked_range<int>(0, vLeft + vRight), [&](tbb::blocked_range<int> r) {
+        for (int u = r.begin(); u < r.end(); ++u)
+            for (const int& v : G[u]) {
+                if (u < vLeft) {
+                    newG[rank[u]].push_back(v);
+                    E[(rank[u] + v - vLeft) * (rank[u] + v - vLeft + 1) / 2 + v - vLeft] = true;
+                }
+                else
+                    newG[u].push_back(rank[v]);
             }
-            else
-                newG[u].push_back(rank[v]);
-        }
-    }
+    });
 
     return E;
 }
@@ -172,11 +174,11 @@ void getm (const std::vector<std::pair<int, int>>& W, const int& start, const in
     while (l <= r) {
         m = (l + r) / 2;
 
-        const std::pair<int, int>& wedge = W[m];
+        const int& u2 = W[m].first;
         
-        if (wedge.first < u)
+        if (u2 < u)
             l = m + 1;
-        else if (wedge.first > u)
+        else if (u2 > u)
             r = m - 1;
         else
             return;
@@ -326,8 +328,6 @@ int main(int argc, char *argv[]) {
 		std::cout << "Usage: " << argv[0] << " path_to_dataset" << "\n";
         return 1;
 	}
-
-    std::cout << argv[1] << std::endl;
 
     char *filename = argv[1];
 
