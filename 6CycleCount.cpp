@@ -35,7 +35,7 @@ typedef std::vector<std::vector<int>> graph;
 
 typedef phmap::flat_hash_map<uint64_t, bool> edges;
 
-edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t& vRight, graph& G) {
+edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t& vRight, graph& newG) {
 
     char *f;
     int size;
@@ -76,7 +76,7 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
         headerEnd += 1;
         c = f[headerEnd];
     }
-    G.resize(vLeft + vRight);
+    graph G(vLeft + vRight);
 
     edges E(nEdge);
 
@@ -103,9 +103,40 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
                 left = true;
                 G[u].push_back(v + vLeft);
                 G[v + vLeft].push_back(u);
-                E[(u + v) * (u + v + 1) / 2 + v] = true;
                 u = 0; v = 0;
             }
+        }
+    }
+
+    // sorting in increasing order of degrees
+    std::vector<int> idx(vLeft);
+
+    tbb::parallel_for(tbb::blocked_range<int>(0, vLeft), [&](tbb::blocked_range<int> r) {
+        for (int i = r.begin(); i < r.end(); ++i){
+            idx[i] = i;
+        }
+    });
+    
+    std::sort(idx.begin(), idx.end(), [&G](int i1, int i2) {return G[i1].size() < G[i2].size();});
+    
+    std::vector<int> rank(vLeft);
+    
+    tbb::parallel_for(tbb::blocked_range<int>(0, vLeft), [&](tbb::blocked_range<int> r) {
+        for (int i = r.begin(); i < r.end(); ++i){
+            rank[idx[i]] = i;
+        }
+    });
+
+    newG.resize(vLeft + vRight);
+
+    for (int u = 0; u < G.size(); ++u) {
+        for (int v : G[u]) {
+            if (u < vLeft) {
+                newG[rank[u]].push_back(v);
+                E[(rank[u] + v - vLeft) * (rank[u] + v - vLeft + 1) / 2 + v - vLeft] = true;
+            }
+            else
+                newG[u].push_back(rank[v]);
         }
     }
 
@@ -201,9 +232,7 @@ int getCount(const graph& G, const uint32_t& nEdge, const uint32_t& vLeft, const
                                 W[w] = std::make_pair(u2, v1);
                                 break;
                             }
-                            int u = W[w].first;
-                            int v = W[w].second;
-                            if (u2 < u) {
+                            if (u2 < W[w].first) {
                                 for (int w2 = partitions[u1] + i - 1; w2 >= w; --w2) {
                                     W[w2 + 1] = W[w2];
                                 }
@@ -233,8 +262,8 @@ int getCount(const graph& G, const uint32_t& nEdge, const uint32_t& vLeft, const
                         continue;
                     u3 = W[w2_idx].first;
                     int v2 = W[w2_idx].second - vLeft;
-                    skip = E.contains((u3 + v1) * (u3 + v1 + 1) / 2 + v1);
                     // u3 -> v1
+                    skip = E.contains((u3 + v1) * (u3 + v1 + 1) / 2 + v1);
                     // u1 -> v2
                     if (!skip && !E.contains((u1 + v2) * (u1 + v2 + 1) / 2 + v2)) {
                         if (idx != u3) {
