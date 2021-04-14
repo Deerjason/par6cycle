@@ -161,6 +161,7 @@ By establishing an ordering of nodes, we can avoid traversing the same induced 6
 
 We define a wedge retrieval algorithm, $GetWedges$ (Algorithm \ref{alg:GetWedges}), that takes as input a preprocessed graph and outputs a list of wedges.
 We use \textit{W} to denote a parallel container such that \textit{W(x)} stores \textit{x} in the container.
+\textit{W} should allow for fast access of wedges based on endpoints such that when accessing all wedges whose smallest endpoint is $u1$ $\in$ $U$, wedges are sorted based on the other endpoint.
 $GetWedges$ is based off of Shi and Shun \cite{shi2019parallel} wedge retrieval algorithm which enables the parallel processing of wedges.
 For all nodes \textit{u1} in \textit{U}, the algorithm retrieves all wedges with endpoints \textit{u1, u2} and center \textit{v} such that \textit{u2} is greater than \textit{u1}.
 Note that Shi and Shun proved how once we have retrieved all wedges with endpoint \textit{u1}, there is no need to consider wedges with center \textit{u1}.
