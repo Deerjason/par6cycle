@@ -17,7 +17,6 @@
         0 1
         1 0
 */
-
 #include <chrono>
 #include <iostream>
 #include <vector>
@@ -34,7 +33,7 @@
 
 typedef std::vector<std::vector<int>> graph;
 
-typedef phmap::parallel_flat_hash_map<uint64_t, bool> edges;
+typedef std::vector<phmap::flat_hash_set<int>> edges;
 
 edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t& vRight, graph& newG) {
 
@@ -80,6 +79,8 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
 
     graph G(vLeft + vRight);
 
+    int minV = 0;
+
     int u = 0, v = 0;
     bool left = true;
     int count = 0;
@@ -120,83 +121,85 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
     tbb::parallel_sort(idx.begin(), idx.end(), [&G](int i1, int i2) {return G[i1].size() < G[i2].size();});
     
     std::vector<int> rank(vLeft);
+
+    edges E(vLeft);
     
     tbb::parallel_for(tbb::blocked_range<int>(0, vLeft), [&](tbb::blocked_range<int> r) {
         for (int i = r.begin(); i < r.end(); ++i){
             rank[idx[i]] = i;
+            E[i].reserve(G[i].size());
         }
     });
 
-    edges E(nEdge);
     newG.resize(vLeft + vRight);
 
     tbb::parallel_for(tbb::blocked_range<int>(0, vLeft + vRight), [&](tbb::blocked_range<int> r) {
-        for (int u = r.begin(); u < r.end(); ++u)
-            for (const int& v : G[u]) {
+        for (int u = r.begin(); u < r.end(); ++u){
+            for (int v : G[u]) {
                 if (u < vLeft) {
                     newG[rank[u]].push_back(v);
-                    E[(rank[u] + v - vLeft) * (rank[u] + v - vLeft + 1) / 2 + v - vLeft] = true;
+                    E[rank[u]].insert(v - vLeft);
                 }
-                else
+                else {
                     newG[u].push_back(rank[v]);
+                }
             }
+        }
+    });
+
+    tbb::parallel_for(tbb::blocked_range<int>(vLeft, vLeft + vRight), [&](tbb::blocked_range<int> r) {
+        for (int i = r.begin(); i < r.end(); ++i){
+            std::sort(newG[i].begin(), newG[i].end(), std::greater<int>());
+        }
     });
 
     return E;
 }
 
-
-/*
-Proof of Correctness
-
-We will prove this algorithm is correct by contradiction.
-
-Say that there exists a set of nodes that is inaccurately counted as an induced 6-cycle.
-Since our algorithm checks for inducedness given a set of 6 unique nodes, every node set counted must be an induced 6-cycle, contradicting our claim.
-
-Say that there exists an induced 6-cycle that is counted twice.
-Since there exists a specific ordering of wedge traversal in our algorithm and each wedge is stored exactly once, a wedge can't be processed twice.
-Since all traversed induced 6-cycles, which is represented by the set of unique nodes {u1, u2, u3, v1, v2, v3}, have the property u1 < u2 < u3, an induced 6-cycle can't be traversed twice.
-This contradicts our claim of duplicity in induced 6-cycle counting.
-
-Say that there exists an induced 6-cycle x = {u1, u2, u3, v1, v2, v3} that isn't counted.
-Then x contains three wedges a = {u1, u2, v1}, b = {u2, u3, v2}, and c = {u1, u3, v3}, which the algorithm processes in that order.
-Therefore, when a is processed, the algorithm counts the triangle of wedges a, b, and c as an induced 6-cycle, contradicting our claim.
-
-Since all possible cases lead to contradiction, this algorithm returns the correct induced 6-cycle count.
-*/
-
 // finds location of a wedge with endpoint u in the vector of wedges W
-void getm (const std::vector<std::pair<int, int>>& W, const int& start, const int& end, const int& u, int& m) {
+int getm (const std::vector<std::pair<int, int>>& W, int start, int end, int u) {
 
     int l = start;
     int r = end - 1;
     while (l <= r) {
-        m = (l + r) / 2;
+        int m = (l + r) / 2;
 
-        const int& u2 = W[m].first;
+        int u2 = W[m].first;
         
         if (u2 < u)
             l = m + 1;
         else if (u2 > u)
             r = m - 1;
         else
-            return;
+            return m;
     }
-    m = -1;
-    return;
+    return -1;
 }
 
+struct Sum {
+    uint64_t value;
+    Sum() : value(0) {}
+    Sum(Sum& s, tbb::split) {value = 0;}
+    void operator()(const tbb::blocked_range<std::vector<uint64_t>::iterator>& r) {
+        uint64_t temp = value;
+        for(std::vector<uint64_t>::iterator it = r.begin(); it != r.end(); ++it) {
+            temp += *it;
+        }
+        value = temp;
+    }
+    void join(Sum& rhs) {value += rhs.value;}
+};
+
 // returns number of induced 6 cycles
-int getCount(const graph& G, const uint32_t& nEdge, const uint32_t& vLeft, const uint32_t& vRight, const edges& E) {
+uint64_t getCount(const graph& G, const uint32_t nEdge, const uint32_t vLeft, const uint32_t vRight, const edges& E) {
 
     std::vector<int> partitions(vLeft);
 
     tbb::parallel_for(tbb::blocked_range<int>(0, vLeft - 1), [&](tbb::blocked_range<int> r) {
         for (int u = r.begin(); u < r.end(); ++u) {
             int val = 0;
-            for (const int& v : G[u]) {
-                for (const int& u2 : G[v]) {
+            for (int v : G[u]) {
+                for (int u2 : G[v]) {
                     if (u2 > u) {
                         ++val;
                     }
@@ -217,17 +220,18 @@ int getCount(const graph& G, const uint32_t& nEdge, const uint32_t& vLeft, const
 			}
 			return tmp;
 		},
-		[&](const int &a, const int &b) {
+		[](int a, int b) {
 			return a + b;
-		});
+	    }
+    );
 
     std::vector<std::pair<int, int>> W(partitions[vLeft - 1]);
 
     tbb::parallel_for(tbb::blocked_range<int>(0, vLeft - 1), [&](tbb::blocked_range<int> r) {
         for (int u1 = r.begin(); u1 < r.end(); ++u1) {
             int i = 0;
-            for (const int& v1 : G[u1])
-                for (const int& u2 : G[v1])
+            for (int v1 : G[u1])
+                for (int u2 : G[v1])
                     if (u2 > u1) {
                         for (int w = partitions[u1]; w < partitions[u1] + i + 1; ++w) {
                             if (w == partitions[u1] + i) {
@@ -244,18 +248,21 @@ int getCount(const graph& G, const uint32_t& nEdge, const uint32_t& vLeft, const
                         }
                         ++i;
                     }
+                    else
+                        break;
         }
     });
 
-    std::vector<int> counts(vLeft);
+    std::vector<uint64_t> counts(vLeft - 1);
 
     tbb::parallel_for(tbb::blocked_range<int>(0, vLeft - 1), [&](tbb::blocked_range<int> r) {
         for (int u1 = r.begin(); u1 < r.end(); ++u1) {
-            int c, m, idx = -1, u3 = -1;
-            bool skip = false;
-            int count = 0;
+            int c;
+            uint64_t count = 0;
             // u1 -> v1 -> u2
             for (int w1_idx = partitions[u1]; w1_idx < partitions[u1 + 1]; ++w1_idx) {
+                int idx = -1, u3 = -1;
+                bool skip = false;
                 int u2 = W[w1_idx].first;
                 int v1 = W[w1_idx].second - vLeft;
                 // u2 -> v2 -> u3
@@ -265,13 +272,13 @@ int getCount(const graph& G, const uint32_t& nEdge, const uint32_t& vLeft, const
                     u3 = W[w2_idx].first;
                     int v2 = W[w2_idx].second - vLeft;
                     // u3 -> v1
-                    skip = E.contains((u3 + v1) * (u3 + v1 + 1) / 2 + v1);
+                    skip = E[u3].contains(v1);
                     // u1 -> v2
-                    if (!skip && !E.contains((u1 + v2) * (u1 + v2 + 1) / 2 + v2)) {
+                    if (!skip && !E[u1].contains(v2)) {
                         if (idx != u3) {
                             c = 0;
                             // u1 -> v3 -> u3
-                            getm(W, partitions[u1], partitions[u1 + 1], u3, m);
+                            int m = getm(W, partitions[u1], partitions[u1 + 1], u3);
                             idx = m;
                             while (idx < partitions[u1 + 1]) {
                                 const std::pair<int, int>& curr = W[idx];
@@ -279,7 +286,7 @@ int getCount(const graph& G, const uint32_t& nEdge, const uint32_t& vLeft, const
                                     break;
                                 int v3 = curr.second - vLeft;
                                 // u2 -> v3
-                                if (v3 != v1 && !E.contains((u2 + v3) * (u2 + v3 + 1) / 2 + v3))
+                                if (v3 != v1 && !E[u2].contains(v3))
                                     ++c;
                                 ++idx;
                             }
@@ -290,7 +297,7 @@ int getCount(const graph& G, const uint32_t& nEdge, const uint32_t& vLeft, const
                                     break;
                                 int v3 = curr.second - vLeft;
                                 // u2 -> v3
-                                if (v3 != v1 && !E.contains((u2 + v3) * (u2 + v3 + 1) / 2 + v3))
+                                if (v3 != v1 && !E[u2].contains(v3))
                                     ++c;
                                 --idx;
                             }
@@ -299,25 +306,14 @@ int getCount(const graph& G, const uint32_t& nEdge, const uint32_t& vLeft, const
                         count += c;
                     }
                 }
-                idx = -1;
-                skip = false;
             }
             counts[u1] = count;
         }
     });
 
-    return tbb::parallel_reduce( 
-            tbb::blocked_range<int>(0,counts.size()),
-            0.0,
-            [&](tbb::blocked_range<int> r, int running_total)
-            {
-                for (int i=r.begin(); i<r.end(); ++i)
-                {
-                    running_total += counts[i];
-                }
-
-                return running_total;
-            }, std::plus<int>());
+    Sum total;
+    tbb::parallel_reduce(tbb::blocked_range<std::vector<uint64_t>::iterator>(counts.begin(), counts.end()), total);
+    return total.value;
 }
 
 auto get_time() {return std::chrono::high_resolution_clock::now(); }
@@ -339,7 +335,7 @@ int main(int argc, char *argv[]) {
 
     auto start = get_time();
 
-    int B = getCount(G, nEdge, vLeft, vRight, E);
+    uint64_t B = getCount(G, nEdge, vLeft, vRight, E);
     
     std::cout << "Number of induced 6 cycles: " << B << "\n";
 

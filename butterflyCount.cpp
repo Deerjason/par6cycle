@@ -173,11 +173,11 @@ int countEWedges(const std::vector<wedgeMap>& wedgeMapList) {
 
     int partitions = wedgeMapList.size();
 
-    std::vector<int> wedgeCounts(partitions);
+    std::vector<uint64_t> wedgeCounts(partitions);
     tbb::parallel_for(tbb::blocked_range<int>(0, partitions), [&](tbb::blocked_range<int> r) {
         for (int s = r.begin(); s < r.end(); ++s) {
             const wedgeMap& W = wedgeMapList[s];
-            int B = 0;
+            uint64_t B = 0;
             for (auto const& w : W) {
                 int n = w.second;
                 B += n * (n - 1) / 2;
@@ -189,14 +189,14 @@ int countEWedges(const std::vector<wedgeMap>& wedgeMapList) {
     return tbb::parallel_reduce( 
             tbb::blocked_range<int>(0, partitions),
             0,
-            [&](tbb::blocked_range<int> r, int count)
+            [&](tbb::blocked_range<int> r, uint64_t count)
             {
                 for (int i = r.begin(); i < r.end(); ++i) {
                     count += wedgeCounts[i];
                 }
 
                 return count;
-            }, std::plus<int>() );
+            }, std::plus<uint64_t>() );
 }
 
 auto get_time() {return std::chrono::high_resolution_clock::now(); }
@@ -220,7 +220,7 @@ int main(int argc, char *argv[]) {
 
     std::vector<wedgeMap> W = getWedges(G, rank, vLeft + vRight);
 
-    int B = countEWedges(W);
+    uint64_t B = countEWedges(W);
     
     std::cout << "Number of butterflies: " << B << "\n";
 
