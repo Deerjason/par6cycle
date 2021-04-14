@@ -309,7 +309,7 @@ This results in significant speedups for graphs composing of similar 6-cycles in
 In terms of runtime in relation to the number of cores, DBLP, IMDB, and Github had significant speedups of about 23x when comparing 32 cores to a single core.
 There also isn't a significant decline in expected improvement when using 32 cores for these graphs, suggesting that additional cores may be used to significantly speedup the algorithm.
 The smaller graphs, CondMat and Database, have this decline at around 8 cores.
-Since our implementation of the algorithm parallelizes based on the size of the node sets, larger graphs typically have a higher ideal core amount compared to smaller graphs in terms of expected runtime improvement over cost.
+Since our implementation of the algorithm parallelizes based on the size of the node sets, larger graphs typically have a higher ideal number of cores compared to smaller graphs in terms of expected runtime improvement over cost.
 
 \section {Final Remarks}
 
