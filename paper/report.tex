@@ -1,5 +1,7 @@
 \documentclass[11pt]{article}
 
+\usepackage[hidelinks]{hyperref}
+
 \usepackage[scaled]{helvet}
 \usepackage[T1]{fontenc}
 \renewcommand\familydefault{\sfdefault}
@@ -22,6 +24,7 @@
   \State \algorithmicif\ #1\ \algorithmicthen\ #2}
 
 \usepackage{graphicx}
+\usepackage{subcaption}
 \usepackage[justification=centering]{caption}
 
 \usepackage{cite}
@@ -72,7 +75,7 @@ Butterflies are the smallest building blocks for community structures in biparti
 \end{figure}
 
 Counting cycles in bipartite graphs is NP-hard \cite{flum2004parameterized}.
-Sequential algorithms for butterfly counting use the concept of combining wedges (2-paths) to count butterflies (see Figure \ref{fig:butterfly}) \cite{wang2014rectangle, sanei2018butterfly, chiba1985arboricity}.
+Sequential algorithms for butterfly counting use the concept of combining wedges (2-paths) to count butterflies (see Figure \ref{fig:butterfly}) ~\cite{wang2014rectangle, sanei2018butterfly, chiba1985arboricity}.
 When dealing with larger graphs, however, the runtime of sequential algorithms may be problematic.
 Adapting sequential algorithms for parallelization can significantly reduce the runtime of these algorithms.
 Shi and Shun \cite{shi2019parallel} recently designed a parallel butterfly counting algorithm which modified Chiba and Nishizeki's wedge retrieval process \cite{chiba1985arboricity} to enable parallelization.
@@ -163,7 +166,7 @@ We define a wedge retrieval algorithm, $GetWedges$ (Algorithm \ref{alg:GetWedges
 We use \textit{W} to denote a parallel container such that \textit{W(x)} stores \textit{x} in the container.
 \textit{W} should allow for fast access of wedges based on endpoints such that when accessing all wedges whose smallest endpoint is $u1$ $\in$ $U$, wedges are sorted based on the other endpoint.
 $GetWedges$ is based off of Shi and Shun \cite{shi2019parallel} wedge retrieval algorithm which enables the parallel processing of wedges.
-For all nodes \textit{u1} in \textit{U}, the algorithm retrieves all wedges with endpoints \textit{u1, u2} and center \textit{v} such that \textit{u2} is greater than \textit{u1}.
+For all nodes \textit{u1} $\in$ \textit{U}, the algorithm retrieves all wedges with endpoints \textit{u1, u2} and center \textit{v} such that \textit{u2} is greater than \textit{u1}.
 Note that Shi and Shun proved how once we have retrieved all wedges with endpoint \textit{u1}, there is no need to consider wedges with center \textit{u1}.
 Although this point was originally applied to butterfly counting, the same logic can be applied to induced 6-cycles.
 
@@ -212,15 +215,29 @@ Although this point was originally applied to butterfly counting, the same logic
 We now describe the induced 6-cycle counting algorithm, which is given as $Par6CycleCount$ in Algorithm \ref{alg:Par6CycleCount}.
 Given a bipartite graph $G$, this algorithm applies $G$ to the preprocessing and wedge retrieval algorithms described in Algorithms \ref{alg:Preprocessing} and \ref{alg:GetWedges}, respectively.
 We use $W(x)$ to denote the set of wedges where $x$ is the smallest of the two endpoints and $W(x, y)$ to denote the set of wedges whose endpoints are $x$ and $y$.
-$Par6CycleCount$ finds triangles of wedges {$u1, v1, u2$}, {$u2, v2, u3$}, and {$u1, v3, u3$} such that $u1 < u2 < u3$.
+$Par6CycleCount$ finds triangles of wedges $\{u1, v1, u2\}$, $\{u2, v2, u3\}$, and $\{u1, v3, u3\}$ such that $u1 < u2 < u3$.
 For every triangle of wedges, there are a maximum of three checks for inducedness (see Figure \ref{fig:inducedness}).
-Inducedness checks are skipped if a similar set of wedges was processed previously.
+Inducedness checks are skipped if a similar set of wedges was processed previously (see Figure \ref{fig:speedups}).
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.1\textwidth]{figures/Inducedness.png}
-    \caption{\small In this figure, the red edges prevent inducedness for the 6-cycle colored in black. Each inducedness check in Algorithm \ref{alg:Par6CycleCount}, $Par6CycleCount$, corresponds to a red edge.}
+    \caption{\small In this figure, the red edges prevent inducedness for the 6-cycle colored in black. Each inducedness check (lines 15, 16, and 21) in Algorithm \ref{alg:Par6CycleCount}, $Par6CycleCount$, corresponds to a red edge.}
     \label{fig:inducedness}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \begin{subfigure}{.1\textwidth}
+        \centering
+        \includegraphics[height=3cm]{figures/speedup1.png}
+    \end{subfigure}
+    \begin{subfigure}{.1\textwidth}
+        \centering
+        \includegraphics[height=3cm]{figures/speedup2.png}
+    \end{subfigure}
+    \caption{\small The speedups implemented in lines 12 (left) and 17 (right) of $Par6CycleCount$. The figure on the left shows only one inducedness check (the red edge) is needed for wedges $\{u2, v2, u3\}$ and $\{u2, v4, u3\}$. The figure on the right shows that the count of 6-cycles for wedge $\{u2, v2, u3\}$ is the same as wedge $\{u2, v4, u3\}$. Therefore, we only need to do calculations for one wedge.}
+    \label{fig:speedups}
 \end{figure}
 
 \begin{proof}[Proof of correctness]
@@ -238,7 +255,7 @@ Finally, the wedge which contains the smallest and the largest endpoint is trave
 This prevents an induced 6-cycle from being traversed multiple times, contradicting our claim of duplicity in induced 6-cycle counting.
 
 Suppose there exists an induced 6-cycle $x = \{u1, u2, u3, v1, v2, v3\}$ that isn't counted.
-Then x contains three wedges $a = \{u1, u2, v1\}$, $b = \{u2, u3, v2\}$, and $c = \{u1, u3, v3\}$, which the algorithm processes in that order (lines 5, 10, and 19).
+Then x contains three wedges $a = \{u1, v1, u2\}$, $b = \{u2, v2, u3\}$, and $c = \{u1, v3, u3\}$, which the algorithm processes in that order (lines 5, 10, and 19).
 Therefore, the algorithm counts the triangle of wedges $a$, $b$, and $c$ as an induced 6-cycle, contradicting our claim.
 
 Since all possible cases lead to contradiction, $Par6CycleCount$ returns the correct induced 6-cycle count.
@@ -303,7 +320,7 @@ The runtime shown is the average runtime for 3 different runs of $Par6CycleCount
 The most interesting result is that of IMDB and Kindle.
 Although they have comparable graph sizes, Kindle takes significantly longer to process compared to IMDB.
 This indicates that the structure of the graph is important in terms of runtime.
-In $Par6CycleCount$, lines 12 and 17 avoid duplicate processing if the current 6-cycle is similar to a previous 6-cycle.
+In $Par6CycleCount$, lines 12 and 17 avoid duplicate processing if the current 6-cycle is similar to a previous 6-cycle (see Figure \ref{fig:speedups}).
 This results in significant speedups for graphs composing of similar 6-cycles in terms of wedges.
 
 In terms of runtime in relation to the number of cores, DBLP, IMDB, and Github had significant speedups of about 23x when comparing 32 cores to a single core.
