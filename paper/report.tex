@@ -313,7 +313,7 @@ Since our implementation of the algorithm parallelizes based on the size of the 
 \section {Final Remarks}
 
 The next steps are to experiment with different orderings besides degree ordering, such as degeneracy ordering (ordering by core numbers), and to identify which sections of the algorithm are the most problematic.
-The datasets and the code used for this report is available at https://github.com/Deerjason/par6cycle in the develop branch.
+The code used for this report is available at https://github.com/Deerjason/par6cycle.
 Parallelization is achieved through the use of Intel Threading Building Blocks due to its multi-core capabilities and strong tasking support.
 Since we are dealing with graphs with millions of nodes and edges, an efficient parallel library is needed.
 Currently, parallel induced 6-cycle counting is implemented in the develop branch in \textit{6CycleCount.cpp}.
