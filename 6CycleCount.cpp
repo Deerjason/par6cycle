@@ -43,7 +43,7 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
     int fd = open (filename, O_RDONLY);
 
     /* Get the size of the file. */
-    int status = fstat (fd, & s);
+    fstat (fd, &s);
     size = s.st_size;
 
     f = (char *) mmap (0, size, PROT_READ, MAP_PRIVATE, fd, 0);
@@ -79,11 +79,8 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
 
     graph G(vLeft + vRight);
 
-    int minV = 0;
-
     int u = 0, v = 0;
     bool left = true;
-    int count = 0;
     for (int i = headerEnd + 1; i < size; ++i) {
         c = f[i];
 
@@ -102,14 +99,70 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
             // if edge has been processed
             else if (!left) {
                 left = true;
-                G[u].push_back(v + vLeft);
-                G[v + vLeft].push_back(u);
+                v += vLeft;
+                G[u].push_back(v);
+                G[v].push_back(u);
                 u = 0; v = 0;
             }
         }
     }
 
-    // sorting in increasing order of degrees
+    // preprocessing
+
+    // count of wedges if center is in the left set
+    uint32_t wLeft = tbb::parallel_reduce( 
+        tbb::blocked_range<int>(0, vLeft),
+        0,
+        [&](tbb::blocked_range<int> r, uint32_t count)
+        {
+            for (int i = r.begin(); i < r.end(); ++i) {
+                int n = G[i].size();
+                count += n * (n - 1) / 2;
+            }
+
+            return count;
+        }, std::plus<uint32_t>() );
+
+    // count of wedges if center is in the right set
+    uint32_t wRight = tbb::parallel_reduce( 
+        tbb::blocked_range<int>(vLeft, vLeft + vRight),
+        0,
+        [&](tbb::blocked_range<int> r, uint32_t count)
+        {
+            for (int i = r.begin(); i < r.end(); ++i) {
+                int n = G[i].size();
+                count += n * (n - 1) / 2;
+            }
+
+            return count;
+        }, std::plus<uint32_t>() );
+    
+    // swap left and right sets if it results in lower number of wedges
+    if (wLeft < wRight) {
+        graph G2(vLeft + vRight);
+        tbb::parallel_for(tbb::blocked_range<int>(0, vLeft + vRight), [&](tbb::blocked_range<int> r) {
+            for (int i = r.begin(); i < r.end(); ++i){
+                if (i < vLeft) {
+                    G2[i + vRight].reserve(G[i].size());
+                    for (int n : G[i])
+                        G2[i + vRight].push_back(n - vLeft);
+                }
+                else {
+                    G2[i - vLeft].reserve(G[i].size());
+                    for (int n : G[i])
+                        G2[i - vLeft].push_back(n + vRight);
+                }
+            }
+        });
+        std::swap(vLeft, vRight);
+        std::swap(G, G2);
+        std::cout << "Number of Wedges: " << wLeft << std::endl;
+    }
+    else {
+        std::cout << "Number of Wedges: " << wRight << std::endl;
+    }
+
+    // sorting by increasing order of degrees
     std::vector<int> idx(vLeft);
 
     tbb::parallel_for(tbb::blocked_range<int>(0, vLeft), [&](tbb::blocked_range<int> r) {
@@ -117,9 +170,9 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
             idx[i] = i;
         }
     });
-    
+
     tbb::parallel_sort(idx.begin(), idx.end(), [&G](int i1, int i2) {return G[i1].size() < G[i2].size();});
-    
+
     std::vector<int> rank(vLeft);
 
     edges E(vLeft);
