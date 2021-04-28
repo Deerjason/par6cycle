@@ -311,6 +311,29 @@ In this section, we present the runtime of our algorithm on real-world datasets,
   }
 \end{table}
 
+\begin{table}[h]
+  \caption{New Runtime (seconds, 4 sockets)}
+  \label{tab:runtimenew}
+  \centering
+  \scalebox{0.8}{
+    \begin{tabular}{|l|r|r|r|r|r|r|r|}
+        \hline
+        \multicolumn{1}{|c|}{Real-world} & \multicolumn{7}{c|}{\# cores}\\
+        \cline{2-8}
+        \multicolumn{1}{|c|}{datasets} & \multicolumn{1}{c|}{1} & \multicolumn{1}{c|}{2} & \multicolumn{1}{c|}{4} & \multicolumn{1}{c|}{8} & \multicolumn{1}{c|}{16} & \multicolumn{1}{c|}{32} & \multicolumn{1}{c|}{52}\\
+        \hline
+        CondMat & 0.02 & 0.014 & 0.011 & 0.007 & 0.004 & 0.004 & 0.003\\
+        Database & 0.022 & 0.012 & 0.008 & 0.007 & 0.004 & 0.003 & 0.003\\
+        Marvel & 3.957 & 1.999 & 1.066 & 0.584 & 0.323 & 0.248 & 0.206\\
+        DBLP & 8.277 & 4.68 & 2.36 & 1.302 & 0.705 & 0.416 & 0.324\\
+        IMDB & 1,224.275 & 617.813 & 318.777 & 169.048 & 87.145 & 49.363 & 35.859\\
+        Github & 658.617 & 331.518 & 165.961 & 88.864 & 45.684 & 26.22 & 19.315\\
+        Kindle & 1,196.831 & 606.19 & 311.103 & 166.424 & 87.102 & 49.055 & 34.691\\
+        \hline
+    \end{tabular}
+  }
+\end{table}
+
 All experiments were performed on a Linux operating system running on a machine with Intel Xeon processors.
 We ran our algorithm on 2 nodes with each having 16 cores and a total of 64 GB memory.
 We implemented our algorithm in C++ and compiled using gcc 10.2.0 at the -O3 level.
