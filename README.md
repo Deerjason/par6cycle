@@ -4,9 +4,9 @@ This repository uses Intel Threading Building Blocks, which needs to be installe
 
 Parallel hashmap from https://github.com/greg7mdp/parallel-hashmap.
 
-To run the parallel butterfly counting algorithm:
+To run the parallel 6-cycle counting algorithm:
 <br />
-g++ butterflyCount.cpp -O3 -ltbb
+g++ 6CycleCount.cpp -O3 -ltbb
 <br />
 ./a.out path_to_dataset
     

@@ -35,7 +35,8 @@ typedef std::vector<std::vector<int>> graph;
 
 typedef std::vector<phmap::flat_hash_set<int>> edges;
 
-edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t& vRight, graph& newG) {
+// Reads graph file and converts to adjacency list
+graph readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t& vRight) {
 
     char *f;
     int size;
@@ -107,7 +108,11 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
         }
     }
 
-    // preprocessing
+    return G;
+}
+
+// swaps lefta nd right sets depending on their wedge counts and renames nodes in increasing order of degree.
+graph preProcessing(graph& G, uint32_t& vLeft, uint32_t& vRight, edges& E) {
 
     // count of wedges if center is in the left set
     uint32_t wLeft = tbb::parallel_reduce( 
@@ -156,10 +161,6 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
         });
         std::swap(vLeft, vRight);
         std::swap(G, G2);
-        std::cout << "Number of Wedges: " << wLeft << std::endl;
-    }
-    else {
-        std::cout << "Number of Wedges: " << wRight << std::endl;
     }
 
     // sorting by increasing order of degrees
@@ -175,7 +176,7 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
 
     std::vector<int> rank(vLeft);
 
-    edges E(vLeft);
+    E.resize(vLeft);
     
     tbb::parallel_for(tbb::blocked_range<int>(0, vLeft), [&](tbb::blocked_range<int> r) {
         for (int i = r.begin(); i < r.end(); ++i){
@@ -184,7 +185,7 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
         }
     });
 
-    newG.resize(vLeft + vRight);
+    graph newG(vLeft + vRight);
 
     tbb::parallel_for(tbb::blocked_range<int>(0, vLeft + vRight), [&](tbb::blocked_range<int> r) {
         for (int u = r.begin(); u < r.end(); ++u){
@@ -206,7 +207,7 @@ edges readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
         }
     });
 
-    return E;
+    return newG;
 }
 
 // finds location of a wedge with endpoint u in the vector of wedges W
@@ -246,8 +247,8 @@ struct Sum {
 // returns number of induced 6 cycles
 uint64_t getCount(const graph& G, const uint32_t nEdge, const uint32_t vLeft, const uint32_t vRight, const edges& E) {
 
+    // assign wedge partitions to each node in U
     std::vector<int> partitions(vLeft);
-
     tbb::parallel_for(tbb::blocked_range<int>(0, vLeft - 1), [&](tbb::blocked_range<int> r) {
         for (int u = r.begin(); u < r.end(); ++u) {
             int val = 0;
@@ -261,7 +262,6 @@ uint64_t getCount(const graph& G, const uint32_t nEdge, const uint32_t vLeft, co
             partitions[u + 1] = val;
         }
     });
-
     tbb::parallel_scan(tbb::blocked_range<int>(0, vLeft), 0,
 		[&](tbb::blocked_range<int> r, int sum, bool is_final_scan) {
 			int tmp = sum;
@@ -278,8 +278,8 @@ uint64_t getCount(const graph& G, const uint32_t nEdge, const uint32_t vLeft, co
 	    }
     );
 
+    // obtain wedges with endpoints in U and sort by endpoints
     std::vector<std::pair<int, int>> W(partitions[vLeft - 1]);
-
     tbb::parallel_for(tbb::blocked_range<int>(0, vLeft - 1), [&](tbb::blocked_range<int> r) {
         for (int u1 = r.begin(); u1 < r.end(); ++u1) {
             int i = 0;
@@ -306,31 +306,31 @@ uint64_t getCount(const graph& G, const uint32_t nEdge, const uint32_t vLeft, co
         }
     });
 
+    // counts number of induced 6-cycles associated with each wedge
     std::vector<uint64_t> counts(vLeft - 1);
-
     tbb::parallel_for(tbb::blocked_range<int>(0, vLeft - 1), [&](tbb::blocked_range<int> r) {
         for (int u1 = r.begin(); u1 < r.end(); ++u1) {
             int c;
             uint64_t count = 0;
-            // u1 -> v1 -> u2
+            // wedge w1: u1 -> v1 -> u2
             for (int w1_idx = partitions[u1]; w1_idx < partitions[u1 + 1]; ++w1_idx) {
                 int idx = -1, u3 = -1;
                 bool skip = false;
                 int u2 = W[w1_idx].first;
                 int v1 = W[w1_idx].second - vLeft;
-                // u2 -> v2 -> u3
+                // wedge w2: u2 -> v2 -> u3
                 for (int w2_idx = partitions[u2]; w2_idx < partitions[u2 + 1]; ++w2_idx) {
                     if (skip && u3 == W[w2_idx].first)
                         continue;
                     u3 = W[w2_idx].first;
                     int v2 = W[w2_idx].second - vLeft;
-                    // u3 -> v1
+                    // inducedness check: u3 -> v1
                     skip = E[u3].contains(v1);
-                    // u1 -> v2
+                    // inducedness check: u1 -> v2
                     if (!skip && !E[u1].contains(v2)) {
                         if (idx != u3) {
                             c = 0;
-                            // u1 -> v3 -> u3
+                            // wedge w3: u1 -> v3 -> u3
                             int m = getm(W, partitions[u1], partitions[u1 + 1], u3);
                             idx = m;
                             while (idx < partitions[u1 + 1]) {
@@ -338,7 +338,7 @@ uint64_t getCount(const graph& G, const uint32_t nEdge, const uint32_t vLeft, co
                                 if (curr.first != u3)
                                     break;
                                 int v3 = curr.second - vLeft;
-                                // u2 -> v3
+                                // inducedness check: u2 -> v3
                                 if (v3 != v1 && !E[u2].contains(v3))
                                     ++c;
                                 ++idx;
@@ -349,7 +349,7 @@ uint64_t getCount(const graph& G, const uint32_t nEdge, const uint32_t vLeft, co
                                 if (curr.first != u3)
                                     break;
                                 int v3 = curr.second - vLeft;
-                                // u2 -> v3
+                                // inducedness check: u2 -> v3
                                 if (v3 != v1 && !E[u2].contains(v3))
                                     ++c;
                                 --idx;
@@ -364,8 +364,10 @@ uint64_t getCount(const graph& G, const uint32_t nEdge, const uint32_t vLeft, co
         }
     });
 
+    // sum over all wedges' associated induced 6-cycle counts to obtain total induced 6-cycle count
     Sum total;
     tbb::parallel_reduce(tbb::blocked_range<std::vector<uint64_t>::iterator>(counts.begin(), counts.end()), total);
+
     return total.value;
 }
 
@@ -382,15 +384,17 @@ int main(int argc, char *argv[]) {
 
     uint32_t nEdge, vLeft, vRight;
 
-    graph G;
+    graph G = readGraph(filename, nEdge, vLeft, vRight);
 
-    edges E = readGraph(filename, nEdge, vLeft, vRight, G);
+    edges E;
 
     auto start = get_time();
 
-    uint64_t B = getCount(G, nEdge, vLeft, vRight, E);
+    G = preProcessing(G, vLeft, vRight, E);
+
+    uint64_t c = getCount(G, nEdge, vLeft, vRight, E);
     
-    std::cout << "Number of induced 6 cycles: " << B << "\n";
+    std::cout << "Number of induced 6 cycles: " << c << "\n";
 
     auto finish = get_time();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(finish-start);

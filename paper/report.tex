@@ -124,6 +124,19 @@ Our algorithm extends the parallel wedge retrieval algorithm proposed by Shi and
 \begin{algorithmic}[1]
     \Input $G$: graph
     \Output $G'$: ordered graph
+        \State $w_u \gets 0$
+        \ForEach {$x \in U$}
+            \State $n \gets |G(x)|$
+            \State $w_u \gets w_u + \frac{n * (n - 1)}{2}$
+        \EndFor
+        \State $w_v \gets 0$
+        \ForEach {$x \in V$}
+            \State $n \gets |G(x)|$
+            \State $w_v \gets w_v + \frac{n * (n - 1)}{2}$
+        \EndFor
+        \If{$w_u < w_v$}
+            \State $Swap(U, V)$ \Comment swap $U$ and $V$
+        \EndIf
         \State $X \gets Sort(U)$ \Comment sort $U$ in increasing order of degree
         \State Let $x$'s rank $R(x)$ be its index in $X$
         \ForEach {$x \in U \cup V$}
@@ -137,7 +150,10 @@ Our algorithm extends the parallel wedge retrieval algorithm proposed by Shi and
 \end{algorithmic}
 \end{algorithm}
 
-We give a preprocessing algorithm (Algorithm \ref{alg:Preprocessing}) that takes as input a bipartite graph and renames nodes in increasing order of degree.
+We give a preprocessing algorithm (Algorithm \ref{alg:Preprocessing}) that takes as input a bipartite graph, swaps left and right sets depending on their wedge counts, and renames nodes in increasing order of degree.
+\textit{Preprocessing} swaps $U$ and $V$ if the number of wedges whose center is $\in$ $U$ is less than the number of wedges whose center is $\in$ $V$.
+This helps reduce the number of processed wedges.
+\textit{Preprocessing} then orders nodes in increasing order of degree, which we found to yield efficient results.
 Shi and Shun \cite{shi2019parallel} proved that using approximate degree ordering, complement degeneracy ordering, and approximate complement degeneracy ordering also gives work-efficient bounds.
 By establishing an ordering of nodes, we can avoid traversing the same induced 6-cycle twice.
 
