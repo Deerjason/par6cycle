@@ -1,5 +1,7 @@
 # par6cycle
 
+Created for the CSE 603 - Parallel and Distributed Processing course at SUNY University at Buffalo.
+
 This repository uses Intel Threading Building Blocks, which needs to be installed in order to run.
 
 Parallel hashmap from https://github.com/greg7mdp/parallel-hashmap.
