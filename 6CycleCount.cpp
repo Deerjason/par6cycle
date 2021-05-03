@@ -111,7 +111,7 @@ graph readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t
     return G;
 }
 
-// swaps lefta nd right sets depending on their wedge counts and renames nodes in increasing order of degree.
+// swaps left and right sets depending on their wedge counts and renames nodes in increasing order of degree.
 graph preProcessing(graph& G, uint32_t& vLeft, uint32_t& vRight, edges& E) {
 
     // count of wedges if center is in the left set
