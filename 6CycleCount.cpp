@@ -35,7 +35,7 @@ typedef std::vector<std::vector<int>> graph;
 
 typedef std::vector<phmap::flat_hash_set<int>> edges;
 
-// Reads graph file and converts to adjacency list
+// reads graph file and converts to adjacency list
 graph readGraph(const char *filename, uint32_t& nEdge, uint32_t& vLeft, uint32_t& vRight) {
 
     char *f;
