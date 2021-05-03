@@ -291,13 +291,13 @@ In this section, we present the runtime of our algorithm on real-world datasets,
         \multicolumn{1}{|c|}{Real-world} & \multicolumn{1}{c|}{} & \multicolumn{1}{c|}{} & \multicolumn{1}{c|}{} & \multicolumn{1}{c|}{\# induced}\\
         \multicolumn{1}{|c|}{datasets} & \multicolumn{1}{c|}{|U|} & \multicolumn{1}{c|}{|V|} & \multicolumn{1}{c|}{|E|} & \multicolumn{1}{c|}{6-cycles}\\
         \hline
-        CondMat & 16,727 & 22,016 & 58,595 & 1.92 x $10^4$\\
         Database & 11,193 & 8,915 & 30,716 & 5.02 x $10^4$\\
+        CondMat & 16,727 & 22,016 & 58,595 & 1.92 x $10^4$\\
         Marvel & 6,487 & 12,942 & 96,662 & 1.70 x $10^9$\\
         DBLP & 4,000,150 & 1,425,813 & 8,649,016 & 5.10 x $10^7$\\
-        IMDB & 1,232,031 & 419,661 & 5,596,667 & 2.01 x $10^{10}$\\
         Github & 56,555 & 123,345 & 440,237 & 1.37 x $10^{11}$\\
         Kindle & 1,406,890 & 430,530 & 3,205,467 & 5.20 x $10^9$\\
+        IMDB & 1,232,031 & 419,661 & 5,596,667 & 2.01 x $10^{10}$\\
         \hline
     \end{tabular}
   }
@@ -308,75 +308,44 @@ In this section, we present the runtime of our algorithm on real-world datasets,
   \label{tab:runtime}
   \centering
   \scalebox{0.8}{
-    \begin{tabular}{|l|r|r|r|r|r|r|}
-        \hline
-        \multicolumn{1}{|c|}{Real-world} & \multicolumn{6}{c|}{\# cores}\\
-        \cline{2-7}
-        \multicolumn{1}{|c|}{datasets} & \multicolumn{1}{c|}{1} & \multicolumn{1}{c|}{2} & \multicolumn{1}{c|}{4} & \multicolumn{1}{c|}{8} & \multicolumn{1}{c|}{16} & \multicolumn{1}{c|}{32}\\
-        \hline
-        CondMat & 0.019 & 0.014 & 0.009 & 0.005 & 0.003 & 0.003\\
-        Database & 0.022 & 0.015 & 0.01 & 0.005 & 0.004 & 0.003\\
-        Marvel & 3.694 & 1.819 & 0.951 & 0.511 & 0.301 & 0.231\\
-        DBLP & 515.112 & 281.172 & 147.85 & 77.022 & 41.182 & 23.512\\
-        IMDB & 1,183.665 & 600.422 & 310.789 & 165.543 & 87.768 & 50.456\\
-        Github & 2,754.367 & 1,396.634 & 733.507 & 379.085 & 206.212 & 117.866\\
-        Kindle & 8,248.202 & 4,324.843 & 2,543.986 & 2,115.458 & 1,000.188 & 923.248\\
-        \hline
-    \end{tabular}
-  }
-\end{table}
-
-\begin{table}[h]
-  \caption{New Runtime (seconds, 4 sockets)}
-  \label{tab:runtimenew}
-  \centering
-  \scalebox{0.8}{
     \begin{tabular}{|l|r|r|r|r|r|r|r|}
         \hline
         \multicolumn{1}{|c|}{Real-world} & \multicolumn{7}{c|}{\# cores}\\
         \cline{2-8}
         \multicolumn{1}{|c|}{datasets} & \multicolumn{1}{c|}{1} & \multicolumn{1}{c|}{2} & \multicolumn{1}{c|}{4} & \multicolumn{1}{c|}{8} & \multicolumn{1}{c|}{16} & \multicolumn{1}{c|}{32} & \multicolumn{1}{c|}{52}\\
         \hline
-        CondMat & 0.02 & 0.014 & 0.011 & 0.007 & 0.004 & 0.004 & 0.003\\
-        Database & 0.022 & 0.012 & 0.008 & 0.007 & 0.004 & 0.003 & 0.003\\
-        Marvel & 3.957 & 1.999 & 1.066 & 0.584 & 0.323 & 0.248 & 0.206\\
-        DBLP & 8.277 & 4.68 & 2.36 & 1.302 & 0.705 & 0.416 & 0.324\\
-        IMDB & 1,224.275 & 617.813 & 318.777 & 169.048 & 87.145 & 49.363 & 35.859\\
-        Github & 658.617 & 331.518 & 165.961 & 88.864 & 45.684 & 26.22 & 19.315\\
-        Kindle & 1,196.831 & 606.19 & 311.103 & 166.424 & 87.102 & 49.055 & 34.691\\
+        Database & 0.034 & 0.03 & 0.019 & 0.019 & 0.015 & 0.021 & 0.026\\
+        CondMat & 0.039 & 0.039 & 0.033 & 0.026 & 0.024 & 0.028 & 0.03\\
+        Marvel & 4.034 & 2.034 & 1.055 & 0.592 & 0.34 & 0.231 & 0.236\\
+        DBLP & 11.054 & 8.041 & 5.692 & 4.06 & 3.01 & 2.815 & 2.79\\
+        Github & 662.976 & 334.258 & 168.153 & 90.041 & 46.005 & 26.653 & 19.619\\
+        Kindle & 1191.062 & 605.218 & 309.911 & 168.394 & 86.568 & 50.424 & 35.445\\
+        IMDB & 1222.31 & 616.419 & 317.124 & 170.187 & 87.783 & 50.025 & 35.404\\
         \hline
     \end{tabular}
   }
+  \vspace{0.5cm}
 \end{table}
 
-All experiments were performed on a Linux operating system running on a machine with Intel Xeon processors.
-We ran our algorithm on 2 nodes with each having 16 cores and a total of 64 GB memory.
+All experiments were performed on a Linux operating system running on a machine with Intel Xeon Gold processor at 2.1 GHz.
+We ran our algorithm on 4 sockets with each having 13 cores for a total of 52 cores.
 We implemented our algorithm in C++ and compiled using gcc 10.2.0 at the -O3 level.
 The runtime, in seconds, is shown in Table \ref{tab:runtime}.
 The runtime shown is the average runtime for 3 different runs of $Par6CycleCount$ with the specified number of cores.
 
-The most interesting result is that of IMDB and Kindle.
-Although they have comparable graph sizes, Kindle takes significantly longer to process compared to IMDB.
-This indicates that the structure of the graph is important in terms of runtime.
-In $Par6CycleCount$, lines 12 and 17 avoid duplicate processing if the current 6-cycle is similar to a previous 6-cycle (see Figure \ref{fig:speedups}).
-This results in significant speedups for graphs composing of similar 6-cycles in terms of wedges.
-
-In terms of runtime in relation to the number of cores, DBLP, IMDB, and Github had significant speedups of about 23x when comparing 32 cores to a single core.
-There also isn't a significant decline in expected improvement when using 32 cores for these graphs, suggesting that additional cores may be used to significantly speedup the algorithm.
+In terms of runtime in relation to the number of cores, Github, Kindle, and IMDB had significant speedups of about 34x when comparing 52 cores to a single core.
+There also isn't a significant decline in expected improvement when using 52 cores for these graphs, suggesting that additional cores may be used to significantly speedup the algorithm.
 The smaller graphs, CondMat and Database, have this decline at around 8 cores.
 Since our implementation of the algorithm parallelizes based on the size of the node sets, larger graphs typically have a higher ideal number of cores compared to smaller graphs in terms of expected runtime improvement over cost.
+In $Par6CycleCount$, lines 12 and 17 avoid duplicate processing if the current 6-cycle is similar to a previous 6-cycle (see Figure \ref{fig:speedups}).
+Marvel's large induced 6-cycle count compared to its graph size indicates a dense induced 6-cycle structure, which results in significant speedups from this duplicate processing avoidance.
+DBLP has a low induced 6-cycle count compared to its graph size, which indicates a sparse induced 6-cycle structure.
+Since fewer induced 6-cycles are processed, DBLP has a faster runtime than Github, Kindle, and IMDB even though it is a larger graph.
 
 \section {Final Remarks}
-
-The next steps are to experiment with different orderings besides degree ordering, such as degeneracy ordering (ordering by core numbers), and to identify which sections of the algorithm are the most problematic.
-I can also experiment with different wedge traversal schemes.
-For example, will traversing wedges which contain endpoints in the smaller set be faster than traversing wedges which contain endpoints in the larger set?
-Runtime analysis with >32 cores can also be analyzed to find the ideal number of cores for a given graph.
-
 The code used for this report is available at https://github.com/Deerjason/par6cycle.
 Parallelization is achieved through the use of Intel Threading Building Blocks due to its multi-core capabilities and strong tasking support.
-Since we are dealing with graphs with millions of nodes and edges, an efficient parallel library is needed.
-Currently, parallel induced 6-cycle counting is implemented in the develop branch in \textit{6CycleCount.cpp}.
+Parallel induced 6-cycle counting is implemented in \textit{6CycleCount.cpp}.
 
 \bibliography{report.bib}{}
 \bibliographystyle{plain}
